@@ -59,3 +59,10 @@ git push
 git rm test.txt
 git commit -m "delete"
 git push
+
+
+tips：
+直接在版本库工作目录下创建空目录后，使用 git status 查看，发现空目录没有被版本库识别。
+正确的添加空目录的方法：
+在空目录下创建.gitkeep文件：touch .gitkeep
+然后重新执行 git status，版本库就可以识别这个空目录了

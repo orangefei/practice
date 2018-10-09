@@ -1,0 +1,102 @@
+dokuwiki故障修复
+
+原因：因断电导致wiki服务启动失败
+安装lap
+# Dokuwiki 是php的，所以要先搭建php环境，下载 apache和php，第1、2步下载完，相关的依赖都会下载
+1、下载 httpd
+yum -y install httpd
+
+2、下载 php
+yum -y install php
+
+#因为用yum命令找不到安装包，所以直接去官网下载稳定版
+## 3、下载并解压dokuwiki程序包
+wget -c http://download.dokuwiki.org/src/dokuwiki/dokuwiki-stable.tgz
+tar -zvxf dokuwiki-stable.tgz
+
+# apache 默认地址是 /var/www/html ，所以把dokuwiki程序包解压后放到此地址
+## 4、将解压后的文件夹移到 apache 默认路径中
+mv dokuwiki-2017-02-19e/ /var/www/html/wiki
+
+# httpd 默认启动的用户及组是 apache，所以修改文件夹所属用户及组
+## 5、修改文件夹所属用户及组
+chown -R apache:apache /var/www/html/wiki
+
+## 6、启动 httpd
+service httpd start
+
+# 检查端口80是否有开通
+ss -tunpl |grep 80
+
+## 7、访问 install.php 进行最后安装
+http://IP或者域名/wiki
+
+## 8、安装配置
+维基名称：你wiki的名字，比如我的是cidev
+启用ACL（推荐）：即启用权限控制，这个保持默认（选中状态）
+超级用户：输入超级用户的用户名
+全名：超级用户的全名，和上一个一样就行
+E-Mail：超级用户的电子邮件地址
+密码：超级用户的密码
+请再输一次：再次输入密码
+初始的ACL政策：全局权限控制策略，在下拉列表中选择一个合适的
+开放的维基（任何人都有读、写、上传的权限）
+公开的维基（任何人都有读的权限，只有注册用户才有写和上传的权限）
+关闭的维基（只有注册用户才有读、写、上传的权限）
+填写完成后按“保存”完成安装。现在再次进入http://IP或者域名/wiki，可以在右下角看到有个“登录”按钮，同时标题栏也变成了你设定的网站名称。
+
+## 9、安装成功后
+1、删除 install.php
+rm -f /var/www/html/wiki/install.php
+2、对URL进行过滤以保证数据安全
+vim /etc/httpd/conf/httpd.conf
+在 httpd.conf 添加下面代码
+<LocationMatch "/wiki/(data|conf|bin|inc)/">
+　　Order allow,deny
+　　Deny from all
+　　Satisfy all
+ </LocationMatch>
+3、开机自启 apache
+chkconfig --levels 235 httpd on
+
+## 10、安装遇到php版本过低问题
+Centos 6.x/7.x yum安装php5.6.X
+1、移除旧的php
+yum remove php.x86_64 php-cli.x86_64 php-common.x86_64 php-gd.x86_64 php-ldap.x86_64 php-mbstring.x86_64 php-mcrypt.x86_64 php-mysql.x86_64 php-pdo.x86_64 
+2、配置yum源
+追加CentOS 6.5的epel及remi源。
+# rpm -Uvh http://ftp.iij.ad.jp/pub/linux/fedora/epel/6/x86_64/epel-release-6-8.noarch.rpm
+# rpm -Uvh http://rpms.famillecollet.com/enterprise/remi-release-6.rpm
+
+
+以下是CentOS 7.0的源。
+# yum install epel-release
+# rpm -ivh http://rpms.famillecollet.com/enterprise/remi-release-7.rpm
+
+使用yum list命令查看可安装的包(Packege)。
+# yum list --enablerepo=remi --enablerepo=remi-php56 | grep php
+
+
+安装PHP5.6.x
+yum源配置好了，下一步就安装PHP5.6。
+yum install --enablerepo=remi --enablerepo=remi-php56 php php-opcache php-devel php-mbstring php-mcrypt php-mysqlnd php-phpunit-PHPUnit php-pecl-xdebug php-pecl-xhprof
+用PHP命令查看版本。
+# php --version
+test.php
+<?php phpinfo(); ?>
+
+
+
+## 11、访问 install.php 进行再次安装
+http://IP或者域名/install.php
+
+
+修复（相当于还原）
+## 12、新的wiki就安装好之后
+拷贝旧wiki数据到新服务器
+step:
+1、先备份Data目录下的attic,media,media_attic,media_meta,meta和pages文件夹，这些是DokuWiki里的数据文件。
+2、先备份conf文件夹。其实主要是acl.auth.php和users.auth.php，这两个文件记录了用户信息和权限信息（dokuwiki是设置项，plugins是插件，这两个我没有备份）。下面这个页面解释了conf里各个配置文件的作用。
+3、全新安装DokuWiki，安装成功后将备份的Data文件和Conf文件覆盖到新wiki服务器上(登陆用户文件:users.auth.php)
+
+end

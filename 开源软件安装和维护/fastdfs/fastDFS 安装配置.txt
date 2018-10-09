@@ -1,0 +1,231 @@
+fastDFS 安装配置
+一、背景描述
+之前公司的图片服务器已经不能胜任了(直接使用tomcat) , 需要重新搭建图片服务器，这两天研究了下fastDFS 
+二、fastdfs 概念：
+	    有两个角色
+		tracker  	跟踪服务 ： 跟踪控制，调度文件以负载均衡方式访问
+		storage 	存储服务 ： 文件存储，文件同步，提供文件访问接口，同时以key value 的方式管理文件的数据
+
+跟踪和存储服务可以由 1台 或多台服务器组成，同时可以动态的添加，删除跟踪和存储服务而不会对在线的服务产生影响，在集群中，tracker 服务是对等的，
+存储系统由一个或多个卷组成，卷与卷之间的文件是相互独立的，所有卷的文件容量累加就是整个存储系统中的文件总容量，一个卷可以由一台存储服务器组成，一个卷下的
+存储服务器中的文件都是相同的，卷中的多台存储服务器起到了冗余备份和负载均衡的作用。在卷中增加服务器时，同步已有的文件由系统自动完成，同步完成后，系统自动将新
+增加服务器切换到线上提供服务。当存储空间不足或即将耗尽时，可以动态添加卷，只要增加一条或多台服务器，并将它们配置为一一个新的卷，这样就扩大了存储系统的容量。
+		
+
+一个对应后端的tracker，一个tracker对应二个storage
+
+	
+	
+三、安装并配置FastDFS
+
+1. 运行环境
+	centos6.5 
+	fastDFS_v5.08.tar.gz
+	nginx-1.8.1.tar.gz
+	fastdfs-nginx-module_v1.6.tar.gz
+	libfastcommon
+
+2.服务器规划
+	fastdfs-tracker		192.168.190.140:22122		跟踪服务器/调度服务器
+	fastdfs-storage		192.168.190.141:23000		存储服务器 
+
+3.安装fastDFS
+1) 安装 libfastcommon
+wget https://codeload.github.com/happyfish100/libfastcommon/zip/master
+unzip master
+cd libfastcommon-master/
+./make.sh && ./make.sh install
+2) 安装 fastDFS
+wget http://jaist.dl.sourceforge.net/project/fastdfs/FastDFS%20Server%20Source%20Code/FastDFS%20Server%20with%20PHP%20Extension%20Source%20Code%20V5.08/FastDFS_v5.08.tar.gz
+tar xf FastDFS_v5.08.tar.gz
+cd FastDFS
+./make.sh && ./make.sh install
+#安装完成
+#采用默认安装后的脚本目录
+1) 服务脚本：
+[root@fastdfs-tracker ~]# ll /etc/init.d/ |grep fdfs
+-rwxr-xr-x. 1 root root   918 4月  22 22:08 fdfs_storaged
+-rwxr-xr-x. 1 root root   920 4月  22 22:08 fdfs_trackerd
+
+2) 样例配置文件
+[root@fastdfs-tracker ~]# ll /etc/fdfs/
+总用量 20
+-rw-r--r--. 1 root root 1461 4月  22 22:08 client.conf.sample
+-rw-r--r--. 1 root root 7927 4月  22 22:08 storage.conf.sample
+-rw-r--r--. 1 root root 7200 4月  22 22:08 tracker.conf.sample
+		
+3) 命令行工具
+[root@fastdfs-tracker ~]# ll /usr/bin|grep fdfs
+
+-rwxr-xr-x.   1 root root     252272 4月  22 22:08 fdfs_appender_test
+-rwxr-xr-x.   1 root root     252225 4月  22 22:08 fdfs_appender_test1
+-rwxr-xr-x.   1 root root     242449 4月  22 22:08 fdfs_append_file
+-rwxr-xr-x.   1 root root     242013 4月  22 22:08 fdfs_crc32
+-rwxr-xr-x.   1 root root     242508 4月  22 22:08 fdfs_delete_file
+-rwxr-xr-x.   1 root root     243627 4月  22 22:08 fdfs_download_file
+-rwxr-xr-x.   1 root root     243369 4月  22 22:08 fdfs_file_info
+-rwxr-xr-x.   1 root root     255657 4月  22 22:08 fdfs_monitor
+-rwxr-xr-x.   1 root root     863913 4月  22 22:08 fdfs_storaged
+-rwxr-xr-x.   1 root root     258712 4月  22 22:08 fdfs_test
+-rwxr-xr-x.   1 root root     257881 4月  22 22:08 fdfs_test1
+-rwxr-xr-x.   1 root root     365232 4月  22 22:08 fdfs_trackerd
+-rwxr-xr-x.   1 root root     243547 4月  22 22:08 fdfs_upload_appender
+-rwxr-xr-x.   1 root root     244453 4月  22 22:08 fdfs_upload_file
+注意： 虽然fastDFS 区分 tracker和storage 服务器，但是安装的软件及步骤一样，配置文件不一样
+
+4.配置跟踪服务器(tracker server)
+1) 拷贝tracker server 和client 端样例 配置文件并重命名
+	cp /etc/fdfs/tracker.conf.sample /etc/fdfs/tracker.conf
+	cp /etc/fdfs/client.conf.sample /etc/fdfs/client.conf
+2) 编辑tracker server 配置文件 tracker.conf, 需要修改内容如下：
+	disabled=false(默认为false,表示是否无效)
+	port=22122
+	base_path=/data/dfs/fastdfs_tracker
+3) 编辑client端的配置文件 client.conf,需要修改内容如下：
+	base_path=/data/dfs/fastdfs_storage_client
+	tracker_server=192.168.190.140:22122
+	tracker_server=192.168.190.141:22122
+4) 创建tracker server数据目录
+	mkdir -p /data/dfs/fastdfs_tracker
+	mkdir -p /data/dfs/fastdfs_storage_client
+5) 测试启动tracker server,启动会在 /data/dfs/fastdfs_tracker 目录下新建data和Logs 目录
+cd /usr/bin
+[root@hadoop-01 bin]# cp fdfs* stop.sh restart.sh /usr/local/bin/
+	cd /data/dfs/fastdfs_tracker
+	/etc/init.d/fdfs_trackerd start
+	netstat -tunlp|grep 22122
+6) 关闭tracker server
+/etc/init.d/fdfs_trackerd stop
+
+
+5.配置存储服务器(storage server)
+1) 拷贝storage server 样例配置文件并重命名
+	cp /etc/fdfs/storage.conf.sample /etc/fdfs/storage.conf
+2) 编辑storage server 配置文件 storage.conf,需要修改内容如下：
+	disabled=false（默认为false，表示是否无效）
+	port=23000（默认为23000） 
+	group_name=group1	#组名 group1 group2
+	base_path=/data/dfs/fastdfs_storage_info01   #数据和日志文件存储根目录
+	tracker_server=192.168.190.140:22122
+	tracker_server=192.168.190.141:22122
+	store_path0=/data/dfs/fastdfs_storage_data01 #第一个存储目录，第二个存储目录起名为 store_path1=xxx，其他存储目录以此类推
+	store_path_count=1   #存储路径个数，与store_path 个数匹配
+	http.server_port=8888（默认为8888，nginx中配置的监听端口那之一致）
+
+3) 创建storage server 数据目录
+	mkdir -p /data/dfs/fastdfs_storage_info01
+	mkdir -p /data/dfs/fastdfs_storage_data01
+4) 测试启动storage server ，启动成功会自动在 /data/dfs/fastdfs_tracker 目录新建data 和logs 目录
+(启动storage server 的前提是tracker server 必须事先已经启动)
+cd /data/dfs/fastdfs_storage_info01/
+vim /etc/init.d/fdfs_storaged
+/etc/init.d/fdfs_storaged start
+ss -tnlpu|grep 23000
+6.文件上传测试
+/usr/bin/fdfs_upload_file /etc/fdfs/client.conf /root/anti-steal.jpg
+group1/M00/00/00/wKi-jFlKFqmAXPKzGLTP7w-e86Q.tar.gz
+返回文件ID即说明文件已经上传成功了
+四、存储服务器(storage server) 安装并配置nginx
+1) 下载并安装 fastdfs-nginx-module模块
+说明：fastDFS 通过tracker 服务器，将文件放在storage服务器存储，但是同组存储服务器之间需要进入文件复制
+有同步延迟问题。假设 tracker 服务器将文件上传到 192.168.190.140，上传成功后ID 已经返回给客户端。
+此时fastDFS 存储集群机制将会将这个文件同步到同组存储 192.168.190.141，在文件还没有复制完成的情况下，
+客户端如果用这个ID在192.168.190.141 上取文件，就会出现文件无法访问的错误，而 fastdfs-nginx-module
+可以重定向文件 连接到源服务器取文件，避免客户端由于复制延迟导致的文件无法访问错误。
+wget http://nchc.dl.sourceforge.net/project/fastdfs/FastDFS%20Nginx%20Module%20Source%20Code/fastdfs-nginx-module_v1.16.tar.gz	
+tar xf fastdfs-nginx-module_v1.16.tar.gz 	
+cd fastdfs-nginx-module/src/
+vim config
+#nginx 编译报错
+ngx_addon_name=ngx_http_fastdfs_module
+HTTP_MODULES="$HTTP_MODULES ngx_http_fastdfs_module"
+NGX_ADDON_SRCS="$NGX_ADDON_SRCS $ngx_addon_dir/ngx_http_fastdfs_module.c"
+CORE_INCS="$CORE_INCS /usr/include/fastdfs /usr/include/fastcommon/"
+CORE_LIBS="$CORE_LIBS -L/usr/lib -lfastcommon -lfdfsclient"
+CFLAGS="$CFLAGS -D_FILE_OFFSET_BITS=64 -DFDFS_OUTPUT_CHUNK_SIZE='256*1024' -DFDFS_MOD_CONF_FILENAME='\"/etc/fdfs/mod_fastdfs.conf\"'"
+2) 拷贝 fastdfs-nginx-module 模块配置到 /etc/fdfs 目录中并编辑
+cp /home/oldcat/tools/fastdfs-nginx-module/src/mod_fastdfs.conf /etc/fdfs/
+vim /etc/fdfs/mod_fastdfs.conf
+修改内容如下：
+connect_timeout=10
+base_path=/data/dfs/fastdfs_storage_info01
+tracker_server=172.18.10.232:22122
+storage_server_port=23000（默认配置为23000）
+url_have_group_name = true
+store_path0=/data/dfs/fastdfs_storage_date01
+group_name=group1（默认配置为group1）
+3) 安装nginx 依赖库
+yum install -y pcre-devel zlib-devel
+wget http://nginx.org/download/nginx-1.8.1.tar.gz
+tar xf nginx-1.8.1.tar.gz
+cd nginx-1.8.1	
+./configure --prefix=/data/app/nginx/ --add-module=../fastdfs-nginx-module/src/
+make && make install
+4) 拷贝fastDFS 中的部分配置文件到 /etc/fdfs 目录中
+cp /home/oldcat/tools/FastDFS/conf/http.conf /etc/fdfs/
+cp /home/oldcat/tools/FastDFS/conf/mime.types /etc/fdfs/
+6) 配置nginx  如下所示：
+vim /usr/local/nginx/conf/nginx.conf
+user  root;    
+worker_processes  1;
+events {
+   worker_connections  1024;
+		}
+		http {
+			include       mime.types;
+			default_type  application/octet-stream;
+			sendfile        on;
+			keepalive_timeout  65;
+			server {
+				listen       80;
+				server_name  localhost;
+				location ~/group[0-9]/ {
+					ngx_fastdfs_module;
+				}
+				error_page   500 502 503 504  /50x.html;
+				location = /50x.html {
+				root   html;
+				}
+			}
+		}
+
+说明： 
+a. 'user root' 是解决下载操作时报404 的问题
+#b. 8888 端口号与 /etc/fdfs/storage.conf 中的 http.server_port=8888 相对应
+c. storage 对应有多个group的情况下，访问路径带 group名称，例如：/group1/M00/00/00*,对应的nginx 配置：
+location ~/group[0-9]/ {
+	ngx_fastdfs_module;
+			}
+7) 拷贝nginx 服务到 /etc/init.d/ 目录下并启动
+	cp /application/nginx/sbin/nginx /etc/init.d/
+	/etc/init.d/nginx
+	ss -lntup|grep 80
+
+	
+8) 通过浏览器访问之前已经上传的文件
+	192.168.190.140/group1/M00/00/00/wKi-jVlKR1GAVnYTGLTP7w-e86Q.tar.gz
+	浏览器可以成功访问到上传的图片，说明fastDFS 搭建的图片服务器成功完成
+验证：
+wget http://10.193.1.51/group1/M00/00/00/CsEBM1ujcAaABROWAABdrZgsqUU247.jpg
+
+
+#上传文件 测试
+/usr/bin/fdfs_upload_file /etc/fdfs/client.conf /root/salt.tar.gz
+上传文件：/usr/local/bin/fdfs_upload_file  <config_file> <local_filename>
+下载文件：/usr/local/bin/fdfs_download_file <config_file> <file_id> [local_filename]
+删除文件：/usr/local/bin/fdfs_delete_file <config_file> <file_id>
+monitor: /usr/local/bin/fdfs_monitor /etc/fdfs/client.conf
+
+
+代码引入：
+tracker.http_port = 80
+tracker.domain =pics.test.com
+tracker.groupName = group1
+tracker_server = 10.2.2.1:22122
+tracker_server = 10.2.2:2:22122
+
+
+
+
+
+		

@@ -1,0 +1,19 @@
+vim activemq.xml
+
+
+zkAddress="10.191.2.65:2181,10.191.2.66:2181,10.191.2.67:2181"
+hostname="node65"
+
+
+
+/opt/activemq/cluster001/node-03/bin/activemq start
+
+访问
+http://10.203.0.1:8161/admin/browse.jsp
+admin/admin
+tcp://10.191.2.65:61616,tcp://10.191.2.66:61616,tcp://10.191.2.67:61616
+
+zk基于java
+mq基于zk
+
+

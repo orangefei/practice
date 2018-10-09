@@ -1,0 +1,153 @@
+salt-api介绍
+saltsatck本身就提供了一套算完整的api，使用 CherryPy 来实现 restful 的 api，供外部的程序调用。
+Salt API几乎涵盖了所有的salt操作，功能强劲，尤其是需要salt和第三方系统集成的场景，值得拥有。
+
+
+salt-api需要安装，然后进行一些配置才可以正常使用，安装方法有两种。
+方法一：
+yum安装，需要的依赖包cherry也会被补全装上。
+安装salt-api，并设置开机启动
+yum -y install salt-api pyOpenSSL 
+systemctl enable salt-api
+
+方法二：
+pip安装，首先要确认机器上有没有安装pip模块。
+rpm -ivh https://mirrors.aliyun.com/epel/7/x86_64/s/salt-api-2015.5.10-2.el7.noarch.rpm
+pip install cherrypy==3.2.3
+pip install cherrypy
+pip install salt-api
+
+配置自签名证书
+cd /etc/pki/tls/certs/
+make testcert
+
+
+
+Enter pass phrase:    ===>  输入加密短语，这里我使用saltapi
+Verifying - Enter pass phrase:    ===>  确认加密短语
+umask 77 ; \
+/usr/bin/openssl req -utf8 -new -key /etc/pki/tls/private/localhost.key -x509 -days 365 -out /etc/pki/tls/certs/localhost.crt -set_serial 0
+Enter pass phrase for /etc/pki/tls/private/localhost.key:    ===>  再次输入相同的加密短语
+You are about to be asked to enter information that will be incorporated
+into your certificate request.
+What you are about to enter is what is called a Distinguished Name or a DN.
+There are quite a few fields but you can leave some blank
+For some fields there will be a default value,
+If you enter '.', the field will be left blank.
+-----
+Country Name (2 letter code) [XX]:CN
+State or Province Name (full name) []:BeiJing
+Locality Name (eg, city) [Default City]:BeiJing
+Organization Name (eg, company) [Default Company Ltd]:
+Organizational Unit Name (eg, section) []:
+Common Name (eg, your name or your server's hostname) []:
+Email Address []:
+
+解密key文件，生成无密码的key文件, 过程中需要输入key密码，该密码为之前生成证书时设置的密码
+
+cd /etc/pki/tls/private/
+openssl rsa -in localhost.key -out localhost_nopass.key
+
+修改文件权限
+chmod 755 /etc/pki/tls/certs/localhost.crt 
+chmod 755 /etc/pki/tls/private/localhost.key 
+chmod 755 /etc/pki/tls/private/localhost_nopass.key
+
+添加用户
+生产环境请使用密码复杂度高的密码，这里我使用saltapi
+useradd -M -s /sbin/nologin saltapi
+passwd saltapi        
+
+配置salt-api
+修改/etc/salt/master文件
+
+sed -i '/#default_include/s/#default/default/g' /etc/salt/master
+
+创建/etc/salt/master.d/目录
+mkdir -p /etc/salt/master.d/
+cd /etc/salt/master.d/
+touch eauth.conf
+touch api.conf
+
+编辑eauth.conf，添加下面内容
+external_auth:
+  pam:
+    saltapi:   # 用户
+      - .*     # 该配置文件给予saltapi用户所有模块使用权限，出于安全考虑一般只给予特定模块使用权限
+
+编辑api.conf，添加下面内容
+rest_cherrypy:
+  port: 8001
+  ssl_crt: /etc/pki/tls/certs/localhost.crt
+  ssl_key: /etc/pki/tls/private/localhost_nopass.key
+
+启动salt-api
+
+systemctl restart salt-master
+systemctl start salt-api
+ps -ef|grep salt-api
+netstat -lnput|grep 8001
+
+
+
+验证服务
+获得token
+
+curl -k https://101.193.10.68:8001/login -H "Accept: application/x-yaml"  -d username='saltapi'  -d password='saltapi'  -d eauth='pam'
+
+return:
+- eauth: pam
+  expire: 1539036673.0518701
+  perms:
+  - .*
+  start: 1538993473.051867
+  token: f40f7f974849e09dcb10ff61356ddec87c137a70
+  user: saltapi
+
+
+调用test.ping
+
+curl -k https://10.193.1.68:8001/ -H "Accept: application/x-yaml" -H "X-Auth-Token: 73d5101049f6b8fb5118dfcaa8c8c2ef1bfbdcbf" -d client='local' -d tgt='*' -d fun='test.ping'
+
+return:
+- testops68: true
+
+curl -k https://101.193.10.68:8001/minions/testops68 \
+     -H "Accept: application/x-yaml" \
+     -H "X-Auth-Token: 73d5101049f6b8fb5118dfcaa8c8c2ef1bfbdcbf"
+
+
+curl -k https://101.193.10.68:8001/jobs/ \
+     -H "Accept: application/x-yaml" \
+     -H "X-Auth-Token: 73d5101049f6b8fb5118dfcaa8c8c2ef1bfbdcbf"
+
+return:
+- '20181008180500433466':
+    Arguments: []
+    Function: test.ping
+    StartTime: 2018, Oct 08 18:05:00.433466
+    Target: testops68
+    Target-type: glob
+    User: root
+
+curl -k https://101.193.10.68:8001/jobs/20181008180500433466 \
+     -H "Accept: application/x-yaml" \
+     -H "X-Auth-Token: 73d5101049f6b8fb5118dfcaa8c8c2ef1bfbdcbf"
+
+
+salt报错调试：
+salt-master -l debug
+
+
+
+
+未完待续
+
+
+
+
+
+
+
+
+

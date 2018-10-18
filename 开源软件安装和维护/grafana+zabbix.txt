@@ -1,0 +1,23 @@
+
+参考博客
+https://www.cnblogs.com/kevingrace/p/7108060.html
+https://yq.aliyun.com/articles/227006
+
+
+Grafana + Zabbix联通部分
+在浏览器地址栏输入 http://IP:3000就可以看到Grafana的登陆页面了。输入默认的用户名admin 密码admin登陆
+点击左侧的Data Sourses-->Add new
+Type下拉框中选择Zabbix
+Name 可以自由发挥~~
+Http settings-->Url 填入http://zabbix-server-ip/zabbix/api_jsonrpc.php 这里填入的是Zabbix API接口
+Http settings-->Access 选择 direct 使用直接访问的方式
+Zabbix API details-->User 填入Admin
+Zabbix API details-->Password 填入 zabbix
+点Save保存后再编辑，出现Test Connection按钮，点击可测试API配置是否正确。出现：Success Zabbix API version: 3.0.0 配置成功
+
+报错：
+grafana  Could not connect to given url
+find / -name api_jsonrpc.php
+/usr/share/zabbix/api_jsonrpc.php
+/usr/share/nginx/html/zabbix/api_jsonrpc.php
+

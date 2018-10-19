@@ -1,23 +1,57 @@
 
-�ο�����
+参考博客
 https://www.cnblogs.com/kevingrace/p/7108060.html
 https://yq.aliyun.com/articles/227006
 
 
-Grafana + Zabbix��ͨ����
-���������ַ������ http://IP:3000�Ϳ��Կ���Grafana�ĵ�½ҳ���ˡ�����Ĭ�ϵ��û���admin ����admin��½
-�������Data Sourses-->Add new
-Type��������ѡ��Zabbix
-Name �������ɷ���~~
-Http settings-->Url ����http://zabbix-server-ip/zabbix/api_jsonrpc.php �����������Zabbix API�ӿ�
-Http settings-->Access ѡ�� direct ʹ��ֱ�ӷ��ʵķ�ʽ
-Zabbix API details-->User ����Admin
-Zabbix API details-->Password ���� zabbix
-��Save������ٱ༭������Test Connection��ť������ɲ���API�����Ƿ���ȷ�����֣�Success Zabbix API version: 3.0.0 ���óɹ�
+Grafana + Zabbix联通部分
+在浏览器地址栏输入 http://IP:3000就可以看到Grafana的登陆页面了。输入默认的用户名admin 密码admin登陆
+点击左侧的Data Sourses-->Add new
+Type下拉框中选择Zabbix
+Name 可以自由发挥~~
+Http settings-->Url 填入http://zabbix-server-ip/zabbix/api_jsonrpc.php 这里填入的是Zabbix API接口
+Http settings-->Access 选择 direct 使用直接访问的方式
+Zabbix API details-->User 填入Admin
+Zabbix API details-->Password 填入 zabbix
+点Save保存后再编辑，出现Test Connection按钮，点击可测试API配置是否正确。出现：Success Zabbix API version: 3.0.0 配置成功
 
-������
+报错：
 grafana  Could not connect to given url
 find / -name api_jsonrpc.php
 /usr/share/zabbix/api_jsonrpc.php
 /usr/share/nginx/html/zabbix/api_jsonrpc.php
 
+
+grafana基本概念
+一、Data Source — 数据源
+Grafana支持多种不同的时序数据库数据源，Grafana对每种数据源提供不同的查询方法，而且能很好的支持每种数据源的特性。
+官方支持以下数据源:Graphite，InfluxDB，OpenTSDB，Prometheus，Elasticsearch，CloudWatch和KairosDB。
+每个数据源的查询语言和能力都是不同的。你可以把来自多个数据源的数据组合到一个仪表板，但每一个面板被绑定到一个特定的数据源,它就属于一个特定的组织
+二、Organization — 组织
+Grafana为了支持多种部署模式支持多组织，包括使用一个单一的Grafana实例为多个潜在的不受信任的组织提供的服务
+三、User — 用户
+用户在Grafana与账户是一个概念。
+四、Row —  行
+行是Grafana在仪表盘界面的逻辑分区器，用于将多个面板连接在一起。
+行一般是12个单位宽度。
+单位宽度是Grafana为了支持不同分辨率的屏幕所采取的一种策略，这样Grafana可以在不同分辨率的显示器上拥有良好的展示效果。
+五、Panel — 面板
+面板是Grafana最基本的展示单位。
+每个面板提供一个查询编辑器（依赖于面板中选择的数据源），允许您利用查询编辑器来编辑出一个完美的展示图像。
+面板提供各种各样的样式和格式选项，而且支持拖拽来在仪表盘上重排，并且可以调整大小。
+目前有四个面板类型：图像，状态，面板列表，表格 等类型，而且也支持文本类型。
+面板（或整个仪表板）可以以多种方式轻松共享，既可以通过链接分享，也可以导出JSON等文本文件。
+六、Query Editor — 语句管理
+Query Editor 顾名思义，就是语句管理，每个面板都提供一个Query Editor，我们可以通过编写语句来控制面板展示不同的图表。
+七、Dashboard — 仪表盘
+仪表盘是Grafana里面最重要的展示部分。
+仪表盘可以视为一组一个或多个面板组成的一个集合，来展示各种各样的面板。
+仪表盘还可以使用 模板 来允许用户交互式的选择数据来展示。
+
+Graph里面的选项有：
+    General（常规选择）、Metrics（指标）、Axes（坐标轴）、Legend（图例）、 Display（显示样式）、Time range（时间范围）
+    Genera（常规选择）：添加图形标题，图形宽度高度等
+    Title：仪表板上的面板标题
+    Span：列在面板中的宽度
+    Height：面板内容高度(以像素为单位)
+系统插件路径：/var/lib/grafana/plugins

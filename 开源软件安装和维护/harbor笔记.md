@@ -91,12 +91,28 @@ Docker Client:
 Login Succeeded
 
 五、排错
-docker login时提示x509: certificate signed by unknown authority
+1、docker login时提示x509: certificate signed by unknown authority
 解决方法: 自签名的证书不被系统信任,需要cp ca.crt /etc/docker/certs.d/local.harbor.com/, 无需重启docker
-docker login -u admin -p Harbor12345 10.194.1.200
+2、docker login -u admin -p Harbor12345 10.194.1.200
 WARNING! Using --password via the CLI is insecure. Use --password-stdin.
 Error response from daemon: Get https://10.194.1.200/v2/: dial tcp 10.194.1.200:443: getsockopt: connection refused
 cat /etc/docker/daemon.json
 添加：
 { "insecure-registries":["10.194.1.200"] }
 systemctl restart docker.service
+vim /usr/lib/systemd/system/docker.service
+3、
+vim /usr/lib/systemd/system/docker.service里面的这行修改为：（其实就是添加 --insecure-registry 10.194.1.200 ）
+ExecStart=/usr/bin/dockerd --insecure-registry 10.194.1.200
+添加完了后重新启动 docker：
+
+六、客户端提交镜像
+接下来我们上传一个镜像，以ubuntu镜像为例，首先从docker hub拉取ubuntu镜像：
+docker pull ubuntu:14.04
+然后为该镜像打上新的标签，标签格式为：Harbor地址/项目名/镜像名称:镜像标签，如
+docker tag ubuntu:15.10  10.193.1.200/library/ubuntu:15.10 
+push我们的镜像到harbor仓库中：
+docker push  10.193.1.200/library/ubuntu 
+push成功后，我们就可以从harbor仓库中使用docker pull拉取我们的镜像了，注意如果是私有项目，必须先使用docker login登录：
+docker pull 10.193.1.200/library/ubuntu:15.10
+done

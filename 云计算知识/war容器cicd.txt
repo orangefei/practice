@@ -1,0 +1,29 @@
+docker：
+开发人员在gitLab上打了一个tag
+gitLab把tag事件推送到Jenkins
+Jenkins 获取tag源码，编译，打包，构建镜像
+Jenkins push 镜像到本地harbor仓库
+Jenkins 执行远程脚本
+远程服务器 pull 指定镜像
+停止老版本容器，启动新版本容器
+通知测试人员部署结果
+
+echo '================开始推送镜像================'
+cd  /var/lib/jenkins/workspace/$JOB_NAME $WORKSPACE
+/usr/bin/docker build -t  10.193.1.33/test/wartest:tags_k8s_wartest_ci${BUILD_NUMBER}  .
+/usr/bin/docker login -u admin -p Harbor12345 10.193.1.33
+/usr/bin/docker push 10.193.1.33/test/wartest:tags_k8s_wartest_ci${BUILD_NUMBER}
+echo '================结束推送镜像================'
+
+
+#docker run -p 8094:8080 --name tomcatwar  -v  /var/lib/jenkins/workspace/CI--k8s_tomcat_demo/target/helloworld.war:/usr/local/tomcat/webapps/helloWord.war -d --restart=always      10.193.1.33/test/wartest:tags_k8s_wartest_ci${BUILD_NUMBER}
+# 获取上个容器名称并删除
+tt=`expr   ${BUILD_NUMBER} - 1`
+docker stop   tomcatwar_$tt
+docker rm -f  tomcatwar_$tt
+
+
+docker run -p 8095:8080  --name tomcatwar_${BUILD_NUMBER} -v  /var/lib/jenkins/workspace/CI--k8s_tomcat_demo/target/helloworld.war:/usr/local/tomcat/webapps/helloWord.war -d --restart=always      10.193.1.33/test/wartest:tags_k8s_wartest_ci${BUILD_NUMBER}
+
+
+遗留问题：回滚，监控，日志

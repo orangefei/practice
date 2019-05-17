@@ -1,0 +1,458 @@
+跟着趋势走，就不会不知道自己要做什么。不一定要超前，但是不要落后，至少不要落后太多。
+每天进步一点点，目标距离近一点。
+机遇+实力
+专注本业，做深做强
+
+confident
+职业规划：系统运维+云计算工程师+开发运维
+
+
+
+基本知识
+ops
+基础设施层：
+IDC 托管
+负载均衡设备
+BGP机房
+网络配置，lvm/raid5/10 idrac/imm远程控制面板（接入单独的交换机）
+操作系统层：
+环境初始化，saltstack ansible 监控zabbix
+应用服务层：
+反向代理
+应用层（开发语言）
+web层
+soa层 dubbo
+分布式层：
+分布式消息队列
+分布式存储
+分布式缓存 redis mem
+nosql
+db：
+mysql 
+
+
+集群层：
+四层：硬件 lvs+keep
+七层 ha nginx apache
+
+网络层：
+汇聚层：三层交换 静态路由
+接入层：二层交换 
+ 
+
+监控：
+基础服务监控  硬件指标，模板 trigger mysql nginx port redis
+业务监控      邮件通知（开发写阈值） APM工具
+流量监控      扩容 piwik
+服务监控      zabbix
+网络监控
+
+
+
+面试总结
+面试①
+类型：实施
+技术要求：k8s集群熟练，mongodb，ceph(赛福)vs nfs ，docker swarm
+关键字：规模 熟练度
+
+集群外网络
+Ingress 是从Kubernetes集群外部访问集群内部服务的入口。
+通常情况下，service和pod仅可在集群内部网络中通过IP地址访问。所有到达边界路由器的流量或被丢弃或被转发到其他地方。Ingress是授权入站连接到达集群服务的规则集合。
+你可以给Ingress配置提供外部可访问的URL、负载均衡、SSL、基于名称的虚拟主机等。用户通过POST Ingress资源到API server的方式来请求ingress。 Ingress controller负责实现Ingress，通常使用负载平衡器，它还可以配置边界路由和其他前端，这有助于以HA方式处理流量。
+作者：KingDragon_Baron 
+来源：CSDN 
+原文：https://blog.csdn.net/fy_long/article/details/86498976 
+版权声明：本文为博主原创文章，转载请附上博文链接！
+
+mongodb备份？
+全库备份
+单个集合备份
+mongodb提供了mongodump/mongorestore，mongoexport/mongoimport两套机制进行数据备份和恢复，其中mongodump主要进行整库备份，mongoexport则主要进行数据集导出。
+2g备份文件
+
+
+存储
+ceph
+Ceph是一种为优秀的性能、可靠性和可扩展性而设计的统一的、分布式文件系统
+采用CRUSH算法，数据分布均衡，并行度高
+支持上千个存储节点的规模，支持TB到PB级的数据
+docker容器、虚拟机远程挂载磁盘存储分配。
+
+
+面试②
+定位：系统硬件工程师
+linux系统启动过程：
+加电-BIOS自检-系统引导lilo/grub-启动内核-初始化系统-加载随机启动的服务
+gitlab ldap：
+基于LDAP认证的GitLab服务LDAP 统一认证、开启 HTTPS
+hanqian_1登陆
+@作为特殊字符不能登录
+ssh. rsa
+打开本地git bash,使用如下命令生成ssh公钥和私钥对
+ssh-keygen -t rsa -C 'xxx@xxx.com' 然后一路回车(-C 参数是你的邮箱地址)
+然后打开~/.ssh/id_rsa.pub文件(~表示用户目录，比如我的windows就是C:\Users\Administrator)，复制其中的内容
+打开gitlab,找到Profile Settings-->SSH Keys--->Add SSH Key,并把上一步中复制的内容粘贴到Key所对应的文本框，在Title对应的文本框中给这个sshkey设置一个名字，点击Add key按钮
+
+
+lvm 扩容
+逻辑盘卷管理
+PV（Physical Volume）- 物理卷
+物理卷在逻辑卷管理中处于最底层，它可以是实际物理硬盘上的分区，也可以是整个物理硬盘，也可以是raid设备。
+VG（Volumne Group）- 卷组
+卷组建立在物理卷之上，一个卷组中至少要包括一个物理卷，在卷组建立之后可动态添加物理卷到卷组中。一个逻辑卷管理系统工程中可以只有一个卷组，也可以拥有多个卷组。
+LV（Logical Volume）- 逻辑卷
+逻辑卷建立在卷组之上，卷组中的未分配空间可以用于建立新的逻辑卷，逻辑卷建立后可以动态地扩展和缩小空间。系统中的多个逻辑卷可以属于同一个卷组，也可以属于不同的多个卷组
+# pvcreate /dev/md5 /dev/sdf1 /dev/sdg
+# vgcreate vg0 /dev/md5 /dev/sdf1 /dev/sdg 
+# lvcreate -L 5G -n lv1 vg0
+格式化指定文件系统ext3 ext4
+挂载到指定目录
+自动挂载
+
+raid
+RAID0 是一种简单的、无数据校验的数据条带化技术，一旦数据损坏，将无法恢复。
+RAID1 称为镜像，它将数据完全一致地分别写到工作磁盘和镜像 磁盘，它的磁盘空间利用率为 50% 
+RAID5 应该是目前最常见的 RAID 等级，它的原理与 RAID4 相似，区别在于校验数据分布在阵列中的所有磁盘上，而没有采用专门的校验磁盘。
+当一个数据盘损坏时，系统可以根据同一条带的其他数据块和对应的校验数据来重建损坏的数据
+RAID 1+0+0 ，有时也称为 RAID 10+0 ，即条带化的 RAID10 。原理如图 10 所示。 RAID100 的缺陷与 RAID10 相同，任意一个 RAID1 损坏一个磁盘不会发生数据丢失，但是剩下的磁盘存在单点故障的危险。最顶层的 RAID0 ，即条带化任务，通常由软件层来完成。
+
+
+
+
+查看磁盘uuid
+blkid
+ls -l /dev/disk/by-uuid
+
+
+安全加固
+齐治堡垒机、jumpserver
+
+redis基本操作：
+redis cpu100
+slowlog get 10
+hgetall
+info replication
+
+
+控制卡imm控制卡，图形化操作
+软件升级扩容
+扩节点
+
+
+系统升级
+源程序包备份
+go语言升级 go build ./run
+jdk
+
+
+linux基本目录：
+/bin 二进制可执行命令
+/dev 设备特殊文件
+/etc 系统管理和配置文件
+/etc/rc.d 启动的配置文件和脚本
+/home 用户主目录的基点，比如用户user的主目录就是/home/user，可以用~user表示
+/lib 标准程序设计库，又叫动态链接共享库，作用类似windows里的.dll文件
+/sbin 超级管理命令，这里存放的是系统管理员使用的管理程序
+/tmp 公共的临时文件存储点
+/root 系统管理员的主目录
+/mnt 系统提供这个目录是让用户临时挂载其他的文件系统
+/lost+found这个目录平时是空的，系统非正常关机而留下“无家可归”的文件（windows下叫什么.chk）就在这里
+/proc 虚拟的目录，是系统内存的映射。可直接访问这个目录来获取系统信息。
+/var 某些大文件的溢出区，比方说各种服务的日志文件
+/usr 最庞大的目录，要用到的应用程序和文件几乎都在这个目录，其中包含
+
+
+高可用
+升级遇到问题？
+
+
+区别
+netstat命令是net-tools工具集中的一员，这个工具一般linux系统会默认安装的；ss命令是iproute工具集中的一员；
+ss
+ss的优势在于它能够显示更多更详细的有关TCP和连接状态的信息，而且比netstat更快速更高效
+netstat
+netstat命令用于显示网络状态
+ss比netstat快的主要原因是，netstat是遍历/proc下面每个PID目录，ss直接读/proc/net下面的统计信息。所以ss执行的时候消耗资源以及消耗的时间都比netstat少很多。
+
+
+etcd
+etcd组件作为一个高可用、强一致性的服务发现键值存储仓库
+
+
+redis：
+Master服务器可读写，
+slave服务器同步成功只能读不能写
+Key-Value数据库
+redis主从没有故障转移（开启哨兵模式redis-sentinel）
+
+type key 查看类型
+CONFIG SET
+CONFIG SET 命令可以动态地调整 Redis 服务器的配置(configuration)而无须重启。
+redis-cli keys "user*" | xargs redis-cli del
+# 删除当前数据库中的所有Key 
+flushdb 
+# 删除所有数据库中的key 
+flushall
+
+管道和xargs参数
+xargs redis-cli del
+
+redis集群 故障转移
+A、某个主节点和所有从节点全部挂掉，我们集群就进入faill状态。
+B、如果集群超过半数以上master挂掉，无论是否有slave，集群进入fail状态.
+C、如果集群任意master挂掉,且当前master没有slave.集群进入fail状态
+
+saltstack
+xen(模板)
+kvm（自动化下载ks.cfg文件）
+=====================================
+
+面试③
+定位：游戏公司简单运维
+全称WEB Application Firewall（网站应用防火墙） waf
+公有云 私有云 混合云
+云服务器不用担心防火墙
+
+架构图：
+slb+ecs(横向扩展)+rds
+网络：app入口+硬件（A10 F5）负载均衡+waf/硬件防火墙深信服ac（上行管理）+核心交换机+接入层
+应用：高可用+springboot分布式(java):前端nginx转发多个后端实例tomcat
+db cache 消息队列 配置管理 中间件(Tomcat, Apache, Nginx) 分布式文件系统FastDFS,GFS、HDFS、Ceph 、GridFS 、mogileFS、TFS
+
+
+运维开发
+python web框架django flask,前端 bootstrap
+第三方api saltstackapi zabbixapi pipeline
+
+
+=============
+
+面试④ 划重点，fighting
+职责描述：
+1.负责证券相关平台系统的部署、变更、维护，保障系统平稳运行；
+2.负责参与开发环境、测试环境、生产环境部署架构规划及落地执行；
+jenkins ci/cd git/svn rsync
+
+3.兼顾办公电脑、云桌面、网络环境等桌面运维，保障公司正常办公。
+
+任职要求：
+1.专科及以上学历；
+2.三年以上互联网或金融系统运维经验，熟悉云服务或自建机房运维；
+负责维护的业务系统，催收系统，现金贷，核心系统，关注监控，业务异常，性能分析优化扩容,oom 超时拒绝
+
+3.熟悉docker、mysql、oracle、tomcat、nginx、zookeeper、redis、rabbitmq、elk等服务组件，熟悉openstack，vmware等云桌面服务；
+rabbitmq erlang+权限分配
+单节点、集群
+
+
+4.熟悉zabbix；精通linux系统，对jvm深入理解者优先；
+模板模板
+告警方式 钉钉，qq,邮件，sms
+
+JVM性能调优监控工具jps、jstack、jmap、jhat、jstat、hprof使用详解
+jps -m -l
+top -Hp pid
+jstack 21711 | grep 54ee
+jmap -clstats  pid
+jstat -class pid
+jstat -gcutil 20173
+jmap -histo:live 20173 >/tmp/032610.txt
+cat /proc/20173/status
+jmap -histo:live 11808 | grep StringBuffer 查询类名包含StringBuffer的信息
+jmap -histo:live 11808 | grep StringBuffer > histo.txt 保存信息到histo.txt文件
+
+
+5.熟悉TCP/IP协议，对网络安全有一定的处理经验；
+网络七层模型
+应表会传网数物
+
+单个IP的命令是
+iptables -I INPUT -s 211.1.0.0 -j DROP
+
+封IP段的命令是
+iptables -I INPUT -s 211.1.0.0/16 -j DROP
+iptables -I INPUT -s 211.2.0.0/16 -j DROP
+iptables -I INPUT -s 211.3.0.0/16 -j DROP
+
+封整个段的命令是
+iptables -I INPUT -s 211.0.0.0/8 -j DROP
+
+封几个段的命令是
+iptables -I INPUT -s 61.37.80.0/24 -j DROP
+iptables -I INPUT -s 61.37.81.0/24 -j DROP
+
+服务器启动自运行
+有三个方法：
+1、把它加到/etc/rc.local中
+2、iptables-save >;/etc/sysconfig/iptables可以把你当前的iptables规则放到/etc/sysconfig/iptables中，系统启动iptables时自动执行。
+3、service   iptables   save 也可以把你当前的iptables规则放/etc/sysconfig/iptables中，系统启动iptables时自动执行。
+后两种更好此，一般iptables服务会在network服务之前启来，更安全
+
+ 
+
+解封：
+
+iptables -L INPUT
+
+iptables -L --line-numbers 然后iptables -D INPUT 序号
+========================
+
+6.精通shell编程，掌握awk/sed/python/js任一种编程语言；
+py脚本，小平台 
+目标，ops完善，减少人工操作
+
+7.良好的沟通，表达能力，有责任心，良好的抗压能力、学习能力。
+
+docker network shell
+
+如果你有选择恐惧症，还是资深患者。Docker 帮你 打包你的纠结！比如 Docker 镜像；Docker 镜像中包含了运行环境和配置，所以 Docker 可以简化部署多种应用实例工作。比如 Web 应用、后台应用、数据库应用、大数据应用比如 Hadoop 集群、消息队列等等都可以打包成一个镜像部署。
+
+
+lvm
+php-fpm
+FastCGI Process Manager：FastCGI进程管理器
+FPM（FastCGI 进程管理器）用于替换 PHP FastCGI 的大部分附加功能，对于高负载网站是非常有用的。 
+
+
+location ~ \.php$ {
+    try_files  $uri = 404;
+    fastcgi_pass  127.0.0.1:9000;
+    fastcgi_index  index.php;
+    include  fastcgi.conf;
+}
+
+
+ZABBIX3.0.0
+模板，脚本
+
+配置项
+nginx 长连接
+
+IPv4 转发
+临时：echo 1 > /proc/sys/net/ipv4/ip_forward
+长期生效： net.ipv4.ip_forward = 1
+
+
+php配置优化
+php可以做什么：
+做什么
+做网站
+移动app的接口
+适合做服务端脚本
+
+
+php简单了解：
+PHP 是服务器端脚本语言。
+PHP 文件的默认文件扩展名是 ".php"
+PHP 7.1.29
+www.php.net
+PHP 脚本以 <?php 开始，以 ?> 结束
+
+Swoole是一个面向生产环境的 PHP 异步网络通信引擎，使 PHP 开发人员可以编写高性能的异步并发 TCP、UDP、Unix Socket、HTTP，WebSocket 服务。Swoole 可以广泛应用于互联网、移动通信、企业软件、云计算、网络游戏、物联网（IOT）、车联网、智能家居等领域。 使用 PHP + Swoole 作为网络通信框架，可以使企业 IT 研发团队的效率大大提升。 [1] 
+
+
+
+php推包：
+jenkins插件
+Publish over SSH
+Phing
+
+git push
+Everything up-to-date
+git push origin master
+
+php大佬：
+https://www.cnblogs.com/phpworld/p/8745544.html
+
+
+docker：
+开发人员在gitLab上打了一个tag
+gitLab把tag事件推送到Jenkins
+Jenkins 获取tag源码，编译，打包，构建镜像
+Jenkins push 镜像到本地harbor仓库
+Jenkins 执行远程脚本
+远程服务器 pull 指定镜像
+停止老版本容器，启动新版本容器
+通知测试人员部署结果
+
+echo '================开始推送镜像================'
+cd  /var/lib/jenkins/workspace/$JOB_NAME $WORKSPACE
+/usr/bin/docker build -t  10.193.1.33/test/wartest:tags_k8s_wartest_ci${BUILD_NUMBER}  .
+/usr/bin/docker login -u admin -p Harbor12345 10.193.1.33
+/usr/bin/docker push 10.193.1.33/test/wartest:tags_k8s_wartest_ci${BUILD_NUMBER}
+echo '================结束推送镜像================'
+
+
+#docker run -p 8094:8080 --name tomcatwar  -v  /var/lib/jenkins/workspace/CI--k8s_tomcat_demo/target/helloworld.war:/usr/local/tomcat/webapps/helloWord.war -d --restart=always      10.193.1.33/test/wartest:tags_k8s_wartest_ci${BUILD_NUMBER}
+# 获取上个容器名称并删除
+tt=`expr   ${BUILD_NUMBER} - 1`
+docker stop   tomcatwar_$tt
+docker rm -f  tomcatwar_$tt
+
+
+docker run -p 8095:8080  --name tomcatwar_${BUILD_NUMBER} -v  /var/lib/jenkins/workspace/CI--k8s_tomcat_demo/target/helloworld.war:/usr/local/tomcat/webapps/helloWord.war -d --restart=always      10.193.1.33/test/wartest:tags_k8s_wartest_ci${BUILD_NUMBER}
+
+
+遗留问题：回滚，监控，日志
+
+java打包编译参数：
+clean -DskipTests=true package -U -P ci
+修改表
+rename table t1 to t2
+
+
+k8s集群
+grep -r  关键字 全局搜索
+
+
+==扯远了================
+二面：
+mysql备份？
+全库备份
+增量备份
+
+
+5.6.31
+mysql的最大连接数默认是100, 最大可以达到16384
+生产环境设置：30000
+max_connections=1000 my.cnf
+mysql5.6中，默认使用的是SBR。而mysql 5.6.5和往后的版本是基于global transaction identifiers(GTIDs)来进行事务复制。当使用GTIDs时可以大大简化复制过程，因为GTIDs完全基于事务，只要在主服务器上提交了事务，那么从服务器就一定会执行该事务。
+Mysql服务器之间的主从同步是基于二进制日志机制，主服务器使用二进制日志来记录数据库的变动情况，从服务器通过读取和执行该日志文件来保持和主服务器的数据一致。
+
+
+主机故障或者宕机：
+1)   在salve执行：
+stop slave；
+reset master；
+查看是否只读模式：show variables like 'read_only';
+只读模式需要修改my.cnf文件，注释read-only=1并重启mysql服务。
+或者不重启使用命令关闭只读，但下次重启后失效：set global read_only=off;
+查看show slave status \G;
+查看show master status \G;
+将从库IP地址改为主库IP地址，测试应用连接是否正常
+
+
+
+nginx 新增目录：
+conf.d
+include  /data/app/nginx/conf/conf.d/*.conf;
+include  /data/app/nginx/conf/conf.d/*/*.conf;
+
+
+
+重要的是这两行，它表明是websocket连接进入的时候，进行一个连接升级将http连接变成websocket的连接。
+proxy_set_header Upgrade $http_upgrade;
+proxy_set_header Connection "upgrade";
+proxy_read_timeout; 表明连接成功以后等待服务器响应的时候，如果不配置默认为60s；
+proxy_http_version 1.1; 表明使用http版本为1.1 
+--------------------- 
+作者：赵丶先森 
+来源：CSDN 
+原文：https://blog.csdn.net/weixin_37264997/article/details/80341911 
+版权声明：本文为博主原创文章，转载请附上博文链接！
+
+
+awk '{print $1}'  m.123.com.access.log|sort | uniq -c |wc -l
+
+
+

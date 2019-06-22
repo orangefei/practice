@@ -1,0 +1,263 @@
+了解知识：
+分布式（Distributed）集群
+分布式集群的各个服务器是用来完成不同系统功能的，通过各个服务器一起工作来完成一件事情。
+高可用性（High-availability)顾名思义，尽可能采取措施减少系统服务中断时间，进而提高业务程序持续对外提供服务的能力。
+负载均衡(Load Balance)集群：
+负责均衡服务器根据负载均衡算法（轮询，随机，哈希，权重等）来分发请求到不同的主服务器。每个主服务器都是等价的，都可以完成相同的功能；容错（fall-over）：容错是负载均衡服务器里面的一个概念。是指当一台主服务器宕机后，集群能够继续提供服务的策略。比如说当主服务器A宕机后，负载均衡服务器要能发现主服务器A不能继续提供服务了，以前分发到主服务器A的请求要分发到其它主服务器。
+ 高可用性集群中的节点一般是一主一备，或者一主多备，通过备份提高整个系统可用性。负载均衡集群一般是多主，每个节点都会分担部分流量。
+
+nginx+keepalive实现高可用负载均衡
+Keepalived高可用服务对之间的故障切换转移，是通过 VRRP 来实现的。在 Keepalived服务正常工作时，主 Master节点会不断地向备节点发送（多播的方式）心跳消息，用以告诉备Backup节点自己还活着，当主 Master节点发生故障时，就无法发送心跳消息，备节点也就因此无法继续检测到来自主 Master节点的心跳了，于是调用自身的接管程序，接管主Master节点的 IP资源及服务。而当主 Master节点恢复时，备Backup节点又会释放主节点故障时自身接管的IP资源及服务，恢复到原来的备用角色
+规划：
+两台nginx服务器
+10.193.1.131 nginx + keepalived   master 主
+10.193.1.132 nginx + keepalived   backup 从
+10.193.1.130 虚拟ip(VIP)对外提供服务的ip，也可称作浮动ip
+
+简介
+一、安装nginx（略）
+参考：https://www.cnblogs.com/connect/p/nginx-install-src.html
+二、安装keepalive
+wget http://www.keepalived.org/software/keepalived-1.2.2.tar.gz
+tar -zxvf keepalived-1.2.2.tar.gz  
+cd keepalived-1.2.2  
+./configure  --prefix=/usr/local/keepalived
+make  
+make install   
+拷贝相应的文件
+1.拷贝执行文件
+cp /usr/local/keepalived/sbin/keepalived /usr/sbin/
+2.将init.d文件拷贝到etc下,加入开机启动项
+cp /usr/local/keepalived/etc/rc.d/init.d/keepalived /etc/init.d/keepalived
+3.将keepalived文件拷贝到etc下，加入网卡配置
+cp /usr/local/keepalived/etc/sysconfig/keepalived /etc/sysconfig/
+4.创建keepalived文件夹
+mkdir -p /etc/keepalived
+5.将keepalived配置文件拷贝到etc下
+cp /usr/local/keepalived/etc/keepalived/keepalived.conf /etc/keepalived/keepalived.conf
+6.添加可执行权限
+chmod +x /etc/init.d/keepalived
+
+2.配置文件 keepalived.conf
+! Configuration File for keepalived
+
+#global_defs {
+#notification_email {
+#acassen@firewall.loc
+#failover@firewall.loc
+#sysadmin@firewall.loc
+#}
+#notification_email_from Alexandre.Cassen@firewall.loc
+#smtp_server 192.168.200.1 #指定smtp服务器地址
+#smtp_connect_timeout 30 #指定smtp连接超时时间
+#router_id LVS_DEVEL #运行keepalived机器的一个标识
+#}
+
+vrrp_script check_nginx {
+script "/etc/keepalived/nginx.sh" ##监控脚本
+interval 3 ##时间间隔，3秒
+weight 2 ##权重
+}
+
+vrrp_instance VI_1 {
+state MASTER #标示状态为MASTER 备份机为BACKUP
+interface eth0 #设置实例绑定的网卡
+virtual_router_id 51 #同一实例下virtual_router_id必须相同
+priority 100 #MASTER权重要高于BACKUP 比如BACKUP为99
+advert_int 1 #MASTER与BACKUP负载均衡器之间同步检查的时间间隔，单位是秒
+authentication { #设置认证
+auth_type PASS #主从服务器验证方式
+auth_pass 1111
+}
+track_script {
+check_nginx ##监控脚本
+}
+virtual_ipaddress { #设置vip
+#192.168.200.16 #可以多个虚拟IP，换行即可
+10.193.1.130/24
+}
+}
+
+#vrrp_instance VI_2 {
+#state BACKUP
+#interface eth1
+#virtual_router_id 52
+#priority 99
+#advert_int 1
+#authentication {
+#auth_type PASS
+#auth_pass 1111
+#}
+#virtual_ipaddress {
+#192.168.200.18
+#}
+#}
+
+ 
+3.启动keepalived
+启动：/etc/init.d/keepalived start
+停止：/etc/init.d/keepalived stop
+重启：/etc/init.d/keepalived restart
+
+启动Master 10.193.1.131的Keepalived节点，sh脚本也会被执行并自动启动Nginx
+启动Backup 10.193.1.132的Keepalived节点，sh脚本也会被执行并自动启动Nginx
+注：不需要手动启动Nginx
+
+开机自启动：echo "/etc/init.d/keepalived start" >>/etc/rc.local
+
+4.测试vip地址是否存在
+[root@local-2 keepalived]# ip a
+2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc pfifo_fast state UP qlen 1000
+    link/ether 76:9e:b3:b8:31:bf brd ff:ff:ff:ff:ff:ff
+    inet 10.193.1.131/24 brd 10.193.1.255 scope global eth0
+    inet 10.193.1.130/24 scope global secondary eth0
+    inet6 fe80::749e:b3ff:feb8:31bf/64 scope link 
+       valid_lft forever preferred_lft forever
+
+三、sersync + rsync
+sersync依赖于rsync进行同步。在同步主服务器上开启sersync，将监控路径中的文件同步到目标服务器，因此需要在主服务器配置sersync，在同步目标服务器配置rsync。
+应用场景：
+nginx服务器配置了多个域名配置文件，假设主的nginx故障，备nginx变为master。这个时候就需要配置文件保持一致，所以我们用到了sersync，有任何改动都会实时同步。
+安装：
+那就是sersync + rsync
+实验环境：
+10.193.1.131    源文件
+10.193.1.132    备份文件
+
+首先在两台机器都安装上rsync并配置模块
+yum   -y   install   rsync
+手动创建一个rsync的配置文件
+cat /etc/rsyncd.conf 
+[nginx]
+uid = deploy
+gid = deploy
+path = /usr/local/nginx/conf/conf.d
+comment = Rsync share test
+read only = no
+auth users = backuser
+secrets file = /etc/rsync.pass
+                  
+创建如上的配置文件之后，再手动输入一个密码
+从配置文件当中，我们可以看到我们的密码文件是/etc/rsync.pass,连接模块的用户名是backuser
+vim /etc/rsync.pass
+文件内容格式如下
+backuser:123
+然后给这个文件的权限设为600，不然会报错
+chmod 600 /etc/rsync.pass
+最后就是启动rsync,并且设置为开机自动启动
+/usr/bin/rsync --daemon &
+echo "/usr/bin/rsync --daemon"  >>/etc/rc.local
+
+
+10.193.1.131
+第一步永远是安装软件
+cd /usr/local/src
+wget --no-check-certificate https://raw.githubusercontent.com/orangle/sersync/master/release/sersync2.5.4_64bit_binary_stable_final.tar.gz
+tar -zxvf sersync2.5.4_64bit_binary_stable_final.tar.gz -C /usr/local/sersync/
+cd /usr/sersync/GNU-Linux-x86
+# cp confxml.xml /usr/local/sersync/conf/
+# cp sersync2 /usr/local/sersync/bin/
+echo "123" >> /etc/rsync.pass
+这个123密码是要好服务端的rsync的密码要相同
+chmod 600 /etc/rsync.pass
+配置sersync,配置文件就是上第二步复制的confxml.xml这个文中，路径在/usr/local/sersync/conf中
+
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<head version="2.5">
+   # 设置本地IP和端口
+   <host hostip="localhost" port="8008"></host>
+   # 开启DUBUG模式  
+   <debug start="false"/>
+   # 开启xfs文件系统
+   <fileSystem xfs="false"/>
+   # 同步时忽略推送的文件(正则表达式),默认关闭
+   <filter start="false">
+       <exclude expression="(.*)\.svn"></exclude>
+       <exclude expression="(.*)\.gz"></exclude>
+       <exclude expression="^info/*"></exclude>
+       <exclude expression="^static/*"></exclude>
+   </filter>
+   <inotify>
+   # 设置要监控的事件
+       <delete start="true"/>##这个最好还是给改成false吧，不然的话，他会删除远程服务器上比自己多的文件，但是你要是想两边保持实时同步的话就要开启了
+       <createFolder start="true"/>
+       <createFile start="true"/>
+       <closeWrite start="true"/>
+       <moveFrom start="true"/>
+       <moveTo start="true"/>
+       <attrib start="true"/>
+       <modify start="true"/>
+   </inotify>
+   <sersync>
+   # 本地同步的目录路径
+       <localpath watch="/usr/local/nginx/conf/conf.d/">
+   # 远程IP和rsync模块名 
+           <remote ip="10.193.1.132" name="nginx"/>  
+           <!--<remote ip="192.168.8.39" name="tongbu"/>-->
+           <!--<remote ip="192.168.8.40" name="tongbu"/>-->
+       </localpath>
+       <rsync>
+   # rsync指令参数
+           <commonParams params="-auvzP"/>
+   # rsync同步认证
+           <auth start="true" users="backuser" passwordfile="/etc/rsync.pass"/>
+   # 设置rsync远程服务端口，远程非默认端口则需打开自定义,这里可以给他改掉，都不要用默认的，在远程服务器的rsyncd.conf里面进行修改，添加port=34875，自己定义
+           <userDefinedPort start="false" port="873"/><!-- port=874 -->
+   # 设置超时时间
+           <timeout start="true" time="100"/><!-- timeout=100 -->
+   # 设置rsync+ssh加密传输模式,默认关闭，开启需设置SSH加密证书
+           <ssh start="false"/>
+       </rsync>
+    # sersync传输失败日志脚本路径，每隔60会重新执行该脚本，执行完毕会自动清空。
+       <failLog path="/usr/local/sersync/log/rsync_fail_log.sh" timeToExecute="60"/><!--default every 60mins execute once-->
+    # 设置rsync+crontab定时传输，默认关闭
+       <crontab start="false" schedule="600"><!--600mins-->
+           <crontabfilter start="false">
+               <exclude expression="*.php"></exclude>
+               <exclude expression="info/*"></exclude>
+           </crontabfilter>
+       </crontab>
+   # 设置sersync传输后调用name指定的插件脚本，默认关闭
+       <plugin start="false" name="command"/>
+   </sersync>
+   # 插件脚本范例
+   <plugin name="command">
+       <param prefix="/bin/sh" suffix="" ignoreError="true"/>  <!--prefix /opt/tongbu/mmm.sh suffix-->
+       <filter start="false">
+           <include expression="(.*)\.php"/>
+           <include expression="(.*)\.sh"/>
+       </filter>
+   </plugin>
+   # 插件脚本范例
+   <plugin name="socket">
+       <localpath watch="/opt/tongbu">
+           <deshost ip="192.168.138.20" port="8009"/>
+       </localpath>
+   </plugin>
+   <plugin name="refreshCDN">
+       <localpath watch="/data0/htdocs/cms.xoyo.com/site/">
+           <cdninfo domainname="ccms.chinacache.com" port="80" username="xxxx" passwd="xxx"/>
+           <sendurl base="http://pic.xoyo.com/cms"/>
+           <regexurl regex="false" match="cms.xoyo.com/site([/a-zA-Z0-9]*).xoyo.com/images"/>
+       </localpath>
+   </plugin>
+</head>
+
+然后就是设置环境变量了
+# echo "export PATH=$PATH:/usr/local/sersync/bin/" >> /etc/profile
+# source /etc/profile
+
+现在就是启动sersync
+sersync2 -r -d -o /usr/local/sersync/conf/confxml.xml
+#重启操作如下：
+# killall sersync2 && sersync2 -r -d -o /usr/local/sersync/conf/confxml.xml
+
+
+设置其开机启动
+# echo "sersync2 -r -d -o /usr/local/sersync/conf/confxml.xml" >> /etc/rc.local
+
+测试：通过在conf.d创建域名配置文件，快速同步到backup主机。
+
+note:保证域名配置文件的另一种方式，也可以通过jenkins发布的方式实现。每次修改提交代码，构建代码及重启nginx服务。
+
+===end===

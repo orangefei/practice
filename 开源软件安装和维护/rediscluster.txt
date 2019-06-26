@@ -1,0 +1,169 @@
+Centos7.6上3台主机3主3从的配置及通过代码访问集群
+Redis集群(redis-cluster)是在3.0及其之后的版本开始支持的。
+Redis 集群中内置了 16384个哈希槽，当需要在 Redis 集群中放置一个 key-value 时，redis 先对 key 使用 crc16 算法算出一个结果，然后把结果对 16384 求余数，这样每个 key 都会对应一个编号在 0-16383 之间的哈希槽，redis 会根据节点数量大致均等的将哈希槽映射到不同的节点。
+Redis集群服务器之间通过互相的ping-pong判断是否节点可以连接上。如果有一半以上的节点去ping一个节点的时候没有回应，集群就认为这个节点宕机了。
+假设集群包含 A 、 B 、 C 、 A1 、 B1 、 C1 六个节点， 其中 A 、B 、C 为主节点， A1 、B1 、C1 为A，B，C的从节点。 如果节点 B 和 B1 都下线的话， Redis 集群还是会停止运作。
+只要集群中大多数Master可达、且失效的Master至少有一个Slave可达，即集群非Fail状态，集群都是可用的。
+集群中每个Master node负责存储数据、集群状态，包括slots与nodes对应关系。Master nodes能够自动发现其他nodes，检测failure节点，当某个Master节点失效时，集群能将核实的Slave提升为Master
+
+
+cd redis-4.0.11
+yum -y install gcc
+make MALLOC=libc/jemalloc
+make
+mkdir etc bin
+mv redis.conf etc/
+cd src
+mv mkreleasehdr.sh  redis-benchmark  redis-check-aof  redis-check-rdb  redis-cli  redis-sentinel  redis-server  redis-trib.rb ../bin
+端口规划
+ip 	端口
+10.194.80.112 	7000 / 7001
+10.194.80.113 	7002 / 7003
+10.194.80.114 	7004 / 7005
+mkdir -p  /usr/local/redis-cluster
+cp /usr/local/redis-4.0.11/etc/redis.conf  /usr/local/redis-cluster/7000
+cp /usr/local/redis-4.0.11/etc/redis.conf  /usr/local/redis-cluster/7001
+cp /usr/local/redis-4.0.11/etc/redis.conf  /usr/local/redis-cluster/7002
+cp /usr/local/redis-4.0.11/etc/redis.conf  /usr/local/redis-cluster/7003
+cp /usr/local/redis-4.0.11/etc/redis.conf  /usr/local/redis-cluster/7004
+cp /usr/local/redis-4.0.11/etc/redis.conf  /usr/local/redis-cluster/7005
+grep -Ev "^$|^[#;]" redis.conf
+
+
+集群准备====
+官方提供的命令行工具redis-trib是使用ruby开发的，所以需要安装Ruby的运行环境。 同时python、ruby、rubygems、lua、tcl都要安装。
+yum install ruby rubygems -y
+在执行gem install redis时
+提示：
+    gem install redis
+    ERROR: Error installing redis:
+    redis requires Ruby version >= 2.2.2.
+升级ruby
+
+gpg --keyserver hkp://keys.gnupg.net --recv-keys 409B6B1796C275462A1703113804BB82D39DC0E3 7D2BAF1CF37B13E2069D6956105BD0E739499BDB 
+curl -sSL https://get.rvm.io | bash -s stable
+find / -name rvm -print
+source /usr/local/rvm/scripts/rvm
+rvm list known
+rvm install 2.4.1
+rvm use 2.4.1 --default
+rvm use 2.4.1
+ruby --version
+gem install redis
+
+开启集群：
+./redis-trib.rb create --replicas 1 10.194.80.112:7000  10.194.80.112:7001   10.194.80.113:7002  10.194.80.113:7003 10.194.80.114:7004  10.194.80.114:7005
+[root@localhost bin]# ./redis-trib.rb create --replicas 1 10.194.80.112:7000  10.194.80.112:7001   10.194.80.113:7002  10.194.80.113:7003 10.194.80.114:7004  10.194.80.114:7005
+>>> Creating cluster
+>>> Performing hash slots allocation on 6 nodes...
+Using 3 masters:
+10.194.80.112:7000
+10.194.80.113:7002
+10.194.80.114:7004
+Adding replica 10.194.80.113:7003 to 10.194.80.112:7000
+Adding replica 10.194.80.114:7005 to 10.194.80.113:7002
+Adding replica 10.194.80.112:7001 to 10.194.80.114:7004
+M: 9a020187d1b0d58f91795f4e802c123787d099b3 10.194.80.112:7000
+   slots:0-5460 (5461 slots) master
+S: 5f4948990ce7c2335a7de44e5023101fd54c816a 10.194.80.112:7001
+   replicates cfc371b9e5b0879650002e32c3b1b14f0d5dbea3
+M: c3d685b040a0b7d1a32ee9dd2df05bc3a44018aa 10.194.80.113:7002
+   slots:5461-10922 (5462 slots) master
+S: 3e87371a4c702b347e9bde25b949a50104d26672 10.194.80.113:7003
+   replicates 9a020187d1b0d58f91795f4e802c123787d099b3
+M: cfc371b9e5b0879650002e32c3b1b14f0d5dbea3 10.194.80.114:7004
+   slots:10923-16383 (5461 slots) master
+S: e961b42af7dd3e1b5cc3725d12eb94776d62838a 10.194.80.114:7005
+   replicates c3d685b040a0b7d1a32ee9dd2df05bc3a44018aa
+Can I set the above configuration? (type 'yes' to accept): yes
+>>> Nodes configuration updated
+>>> Assign a different config epoch to each node
+>>> Sending CLUSTER MEET messages to join the cluster
+Waiting for the cluster to join...
+>>> Performing Cluster Check (using node 10.194.80.112:7000)
+M: 9a020187d1b0d58f91795f4e802c123787d099b3 10.194.80.112:7000
+   slots:0-5460 (5461 slots) master
+   1 additional replica(s)
+M: c3d685b040a0b7d1a32ee9dd2df05bc3a44018aa 10.194.80.113:7002
+   slots:5461-10922 (5462 slots) master
+   1 additional replica(s)
+S: 3e87371a4c702b347e9bde25b949a50104d26672 10.194.80.113:7003
+   slots: (0 slots) slave
+   replicates 9a020187d1b0d58f91795f4e802c123787d099b3
+S: 5f4948990ce7c2335a7de44e5023101fd54c816a 10.194.80.112:7001
+   slots: (0 slots) slave
+   replicates cfc371b9e5b0879650002e32c3b1b14f0d5dbea3
+M: cfc371b9e5b0879650002e32c3b1b14f0d5dbea3 10.194.80.114:7004
+   slots:10923-16383 (5461 slots) master
+   1 additional replica(s)
+S: e961b42af7dd3e1b5cc3725d12eb94776d62838a 10.194.80.114:7005
+   slots: (0 slots) slave
+   replicates c3d685b040a0b7d1a32ee9dd2df05bc3a44018aa
+[OK] All nodes agree about slots configuration.
+>>> Check for open slots...
+>>> Check slots coverage...
+[OK] All 16384 slots covered.
+
+redis-trib.rb create，创建一个新的集群
+选项 --replicas 1 表示为集群中的每个主节点创建一个从节点。 之后的参数是实例的地址列表, 使用这些地址所对应的实例来创建新集群。
+这样redis-trib程序就会创建三个主节点和三个从节点的集群。
+接着， redis-trib 会输出一份配置信息， 确认无误后，输入yes ， redis-trib 会将配置应用到各个节点，并连接起（join)各个节点，让各个节点开始通讯。
+访问集群
+参数 -c 可连接到集群，因为 redis.conf 将 bind 改为了ip地址，所以 -h 参数不能省略，-p 参数为端口号
+
+测试
+set mykey
+然后多个节点查看key如果有的话，则证明集群是好的。
+
+============================
+javaapi调用
+package com.artisan.redis.cluster;
+import java.io.IOException;
+import java.util.LinkedHashSet;
+import java.util.Set;
+import redis.clients.jedis.HostAndPort;
+import redis.clients.jedis.JedisCluster;
+import redis.clients.jedis.JedisPoolConfig;
+
+public class JavaJedisCluster {
+
+	public static void main(String[] args) {
+		JedisPoolConfig poolConfig = new JedisPoolConfig();
+		// 最大连接数
+		poolConfig.setMaxTotal(1);
+		// 最大空闲数
+		poolConfig.setMaxIdle(1);
+		// 最大允许等待时间
+		poolConfig.setMaxWaitMillis(1000);
+		
+		// 集群地址
+		Set<HostAndPort> nodes = new LinkedHashSet<HostAndPort>();
+		nodes.add(new HostAndPort("192.168.31.66", 7000));
+		nodes.add(new HostAndPort("192.168.31.66", 7001));
+		nodes.add(new HostAndPort("192.168.31.56", 7002));
+		nodes.add(new HostAndPort("192.168.31.56", 7003));
+		nodes.add(new HostAndPort("192.168.31.176", 7004));
+		nodes.add(new HostAndPort("192.168.31.176", 7005));
+		
+		// 实例化jedisCluster
+		JedisCluster jedisCluster = new JedisCluster(nodes, poolConfig);
+		
+		// 搭建完成后手工set了一个key，这里直接获取
+		String name = jedisCluster.get("mykey");
+		System.out.println(name);
+		
+		// 通过api去set，然后get
+		jedisCluster.set("mykey2", "code_redis_cluster");
+		System.out.println(jedisCluster.get("mykey2"));
+	
+		try {
+			// 关闭
+			jedisCluster.close();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+
+}
+=================================================================
+

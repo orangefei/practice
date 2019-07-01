@@ -1,0 +1,219 @@
+git clone https://github.com/miguelgrinberg/flasky.git
+cd flasky/
+virtualenv --no-site-packages venv
+source venv/bin/activate
+pip install flask_script
+pip install flask-bootstrap
+deactivave 
+
+一、路由和视图函数
+Flask 有两个主要依赖：路由、调试和 Web 服务器网关接口（ Web Server Gateway Interface，
+WSGI）子系统由 Werkzeug（ http://werkzeug.pocoo.org/）提供；模板系统由 Jinja2（ http://
+jinja.pocoo.org/）提供。 Werkzeug 和 Jinjia2 都是由 Flask 的核心开发者开发而成
+
+在 Flask 程序中定义路由的最简便方式，是使用程序实例提供的 app.route 修饰器，把修
+饰的函数注册为路由。下面的例子说明了如何使用这个修饰器声明路由：
+@app.route('/')
+def index():
+return '<h1>Hello World!</h1>'
+修饰器是 Python 语言的标准特性，可以使用不同的方式修改函数的行为。惯
+常用法是使用修饰器把函数注册为事件的处理程序
+
+前例把 index() 函数注册为程序根地址的处理程序。如果部署程序的服务器域名为 www.
+example.com，在浏览器中访问 http://www.example.com 后， 会触发服务器执行 index() 函
+数。这个函数的返回值称为响应，是客户端接收到的内容。如果客户端是 Web 浏览器， 响
+应就是显示给用户查看的文档。
+像 index() 这样的函数称为视图函数（ view function）。视图函数返回的响应可以是包含
+HTML 的简单字符串，也可以是复杂的表单，后文会介绍
+
+下例定义的路由中就有一部分是动态名字：
+@app.route('/user/<name>')
+def user(name):
+return '<h1>Hello, %s!</h1>' % name
+尖括号中的内容就是动态部分，任何能匹配静态部分的 URL 都会映射到这个路由上。调
+用视图函数时， Flask 会将动态部分作为参数传入函数。在这个视图函数中，参数用于生
+成针对个人的欢迎消息
+
+Flask 支持在路由中使用 int、 float 和 path 类型。
+path 类型也是字符串，但不把斜线视作分隔符，而将其当作动态片段的一部分
+
+二、启动服务器
+程序实例用 run 方法启动 Flask 集成的开发 Web 服务器：
+if __name__ == '__main__':
+app.run(debug=True)
+__name__=='__main__' 是 Python 的惯常用法，在这里确保直接执行这个脚本时才启动开发
+Web 服务器。 如果这个脚本由其他脚本引入，程序假定父级脚本会启动不同的服务器，因
+此不会执行 app.run()。
+服务器启动后， 会进入轮询，等待并处理请求。轮询会一直运行，直到程序停止，比如按
+Ctrl-C 键。
+启动程序：
+(venv) $ python hello.py
+* Running on http://127.0.0.1:5000/
+* Restarting with reloader
+
+
+==hello.py==
+from flask import Flask
+app = Flask(__name__)
+
+
+@app.route('/')
+def index():
+    return '<h1>Hello World!</h1>'
+
+
+@app.route('/user/<name>')
+def user(name):
+    return '<h1>Hello, {}!</h1>'.format(name)
+
+if __name__ == '__main__':
+    app.run(debug=True)
+
+三、程序和请求上下文
+Flask 从客户端收到请求时，要让视图函数能访问一些对象，这样才能处理请求。 请求对
+象就是一个很好的例子，它封装了客户端发送的 HTTP 请求。
+有了上下文，就可以写出下面的视图函数：
+from flask import request
+@app.route('/')
+def index():
+user_agent = request.headers.get('User-Agent')
+return '<p>Your browser is %s</p>' % user_agent
+线程是可单独管理的最小指令集。进程经常使用多个活动线程，有时还会共
+享内存或文件句柄等资源。 多线程 Web 服务器会创建一个线程池，再从线
+程池中选择一个线程用于处理接收到的请求
+
+Flask上下文全局变量
+变量名      上下文     说　　明
+current_app 程序上下文 当前激活程序的程序实例
+g           程序上下文 处理请求时用作临时存储的对象。每次请求都会重设这个变量
+request     请求上下文 请求对象，封装了客户端发出的 HTTP 请求中的内容
+session     请求上下文 用户会话，用于存储请求之间需要“记住”的值的词典
+
+==
+下面这个 Python shell 会话演示了程序上下文的使用方法：
+>>> from hello import app
+>>> from flask import current_app
+>>> current_app.name程序的基本结构 ｜ 13
+Traceback (most recent call last):
+...
+RuntimeError: working outside of application context
+>>> app_ctx = app.app_context()
+>>> app_ctx.push()
+>>> current_app.name
+'hello'
+>>> app_ctx.pop()
+在这个例子中，没激活程序上下文之前就调用 current_app.name 会导致错误，但推送完上
+下文之后就可以调用了。 注意，在程序实例上调用 app.app_context() 可获得一个程序上
+下文
+==
+请求钩子使用修饰器实现。 Flask 支持以下 4 种钩子。14 ｜ 第 2 章
+• before_first_request：注册一个函数，在处理第一个请求之前运行。
+• before_request：注册一个函数，在每次请求之前运行。
+• after_request：注册一个函数，如果没有未处理的异常抛出，在每次请求之后运行。
+• teardown_request：注册一个函数，即使有未处理的异常抛出，也在每次请求之后运行。
+
+有一种名为重定向的特殊响应类型。 这种响应没有页面文档，只告诉浏览器一个新地址用
+以加载新页面。重定向经常在 Web 表单中使用
+
+由于使用频繁， Flask 提
+供了 redirect() 辅助函数，用于生成这种响应：
+from flask import redirect
+@app.route('/')
+def index():
+return redirect('http://www.example.com')
+还有一种特殊的响应由 abort 函数生成，用于处理错误。在下面这个例子中，如果 URL 中
+动态参数 id 对应的用户不存在，就返回状态码 404：
+from flask import abort
+@app.route('/user/<id>')
+def get_user(id):
+user = load_user(id)
+if not user:
+abort(404)
+return '<h1>Hello, %s</h1>' % user.name
+注意， abort 不会把控制权交还给调用它的函数，而是抛出异常把控制权交给 Web 服
+务器。
+
+
+
+四、认识模块flask_script
+usage: hello.py [-?] {shell,runserver} ...
+
+positional arguments:
+  {shell,runserver}
+    shell            Runs a Python shell inside Flask application context.
+    runserver        Runs the Flask development server i.e. app.run()
+
+optional arguments:
+  -?, --help         show this help message and exit
+
+
+from flask import Flask
+from flask_script import Manager
+
+app = Flask(__name__)
+
+manager = Manager(app)
+
+
+@app.route('/')
+def index():
+    return '<h1>Hello World!</h1>'
+
+
+@app.route('/user/<name>')
+def user(name):
+    return '<h1>Hello, %s!</h1>' % name
+
+
+if __name__ == '__main__':
+    manager.run()
+
+
+=====
+加ip访问
+python hello.py runserver --host 0.0.0.0
+修改端口：
+app.run(debug=True,host='10.193.1.119',port=8080)
+
+
+五、模块
+视图函数的作用很明确，即生成请求的响应
+为了渲染模板， Flask 使用了一个名为 Jinja2 的强大模板引擎
+
+Jinja2变量过滤器
+过滤器名   说　　明
+safe       渲染值时不转义
+capitalize 把值的首字母转换成大写，其他字母转换成小写
+lower      把值转换成小写形式
+upper      把值转换成大写形式
+title      把值中每个单词的首字母都转换成大写
+trim       把值的首尾空格去掉
+striptags  渲染之前把值中所有的 HTML 标签都删掉
+
+Jinja2 提供了多种控制结构，可用来改变模板的渲染流程。本节使用简单的例子介绍其中
+最有用的控制结构
+
+使用Flask-Bootstrap集成Twitter Bootstrap
+Bootstrap 是客户端框架， 因此不会直接涉及服务器。服务器需要做的只是提供引用了
+Bootstrap 层 叠 样 式 表（ CSS） 和 JavaScript 文 件 的 HTML 响 应， 并 在 HTML、 CSS 和
+JavaScript 代码中实例化所需组件
+
+Flask-Bootstrap基模板中定义的块
+块　　名 说　　明
+doc 整个 HTML 文档
+html_attribs <html> 标签的属性
+html <html> 标签中的内容
+head <head> 标签中的内容
+title <title> 标签中的内容
+metas 一组 <meta> 标签
+styles 层叠样式表定义
+body_attribs <body> 标签的属性
+body <body> 标签中的内容
+navbar 用户定义的导航条
+content 用户定义的页面内容
+scripts 文档底部的 JavaScript 声明
+
+
+--
+使用Flask-Moment本地化日期和时间
+

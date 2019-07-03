@@ -30,3 +30,34 @@ gitlab-rake gitlab:backup:create
 2.恢复（把备份文件copy到新gitlab服务器的/var/opt/gitlab/backups/目录下）
 gitlab-rake gitlab:backup:restore BACKUP=1528446365_2018_06_08_10.8.4
 恢复命令：gitlab-rake gitlab:backup:restore BACKUP=备份文件时间戳，恢复的时候如果版本不一致，可能报错
+
+安装gitlab报错
+ImportError: /lib64/libc.so.6: version `GLIBC_2.17' 问题解决
+安装最新的TensorFlow（>=1.10）后，载入TensorFlow时提示Glibc版本过低，需要升级到指定版本。
+ImportError: /lib64/libc.so.6: version `GLIBC_2.17' not found (required by /usr/local/python3.6/lib/python3.6/site-packages/tensorflow/python/_pywrap_tensorflow.so)
+1、下载、解压：
+cd /usr/local
+wget https://ftp.gnu.org/gnu/glibc/glibc-2.17.tar.gz
+tar -zxvf glibc-2.17.tar.gz
+在 https://ftp.gnu.org/gnu/glibc/ 或者 http://ftp.twaren.net/Unix/GNU/gnu/libc/ 里选择下载 对应版本.
+2、编译、安装：
+cd glibc-2.17
+./configure --prefix=/usr --disable-profile --enable-add-ons --with-headers=/usr/include --with-binutils=/usr/bin
+必须在一个新目录下编译。解决方法：新建一个目录，然后进入该目录，用绝对路径编译。
+cd /usr/local/glibc-2.17
+mkdir build
+cd build
+../configure --prefix=/usr --disable-profile --enable-add-ons --with-headers=/usr/include --with-binutils=/usr/bin
+然后
+
+# make
+# make install
+3、到这一步如果出现ls目录不能使用，则/lib64/libc.so.6未更新。需要重建软连接，但是先解决命令不能使用问题。
+命令恢复：
+# LD_PRELOAD=/lib64/libc-2.17.so
+设置软连接，先删除旧的：
+# rm /lib64/libc.so.6
+# ln -s /lib64/libc-2.17.so /lib64/libc.so.6
+查看glib详情，执行：
+# strings /lib64/libc.so.6 |grep GLIBC_
+ldd --version

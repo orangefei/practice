@@ -1,5 +1,7 @@
 
-GitLab 批量导入项目( 迁移 )
+GitLab 批量导入项目( 迁移/还原 )
+
+=========
 gitlab 作为代码仓库存储， 可能会由于各种原因问题，对项目进行大批量的迁移；
 
 1）在原来的代码或项目存储的位置进行打包(/vat/opt/gitlab/git-data/repositories);
@@ -19,3 +21,12 @@ tar -czvf test_xxx.tar.gz   test_xxx/*
 
 
  
+=================
+1.备份
+gitlab-rake gitlab:backup:create
+备份文件默认存放目录：
+/var/opt/gitlab/backups/，
+备份文件以 时间戳_gitlab_backup.tar 命名：1528446365_2018_06_08_10.8.4_gitlab_backup.tar
+2.恢复（把备份文件copy到新gitlab服务器的/var/opt/gitlab/backups/目录下）
+gitlab-rake gitlab:backup:restore BACKUP=1528446365_2018_06_08_10.8.4
+恢复命令：gitlab-rake gitlab:backup:restore BACKUP=备份文件时间戳，恢复的时候如果版本不一致，可能报错

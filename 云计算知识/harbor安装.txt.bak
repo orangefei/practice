@@ -171,9 +171,3 @@ cp *.crt /etc/docker/certs.d/
 service docker restart
 
 
-###
-ÖØÆô·şÎñ
-1.systemctl restart docker
-2.restart install.sh
-3.docker-compose up
-  docker-compose stop

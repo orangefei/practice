@@ -332,3 +332,19 @@ location /mobile_loan/ {
         access_log /opt/log/nginx/m.test.com.access.log access;
         error_log /opt/log/nginx/m.test.com.error.log;
     }
+
+
+
+#使用nginx代理socket端口。
+#ngx_stream_core_module 模块
+stream{
+    upstream socket_server{
+	server 127.0.0.1:3802 weight=1;#发布socket1服务端口
+	server 127.0.0.1:3803 weight=1;#发布socket2服务端口
+    }
+    #监听socket端口 
+    server {
+	listen 3801;
+	proxy_pass socket_server;
+    }
+}

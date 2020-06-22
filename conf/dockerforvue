@@ -1,0 +1,23 @@
+Vue程序使用Docker部署
+
+docker pull nginx
+docker run --name=nginx -d -p 4030:80 nginx
+npm install -g @vue/cli
+vue create docker-vue
+
+
+
+npm run serve
+npm run build
+
+
+# 设置基础镜像，这里使用最新的nginx镜像，前面已经拉取过了
+FROM nginx
+# 定义作者 Edison
+MAINTAINER Edison 
+# 将dist文件中的内容复制到 /usr/share/nginx/html/ 这个目录下面
+COPY dist/  /usr/share/nginx/html/
+
+在Linux里面的demo文件夹下面创建vue文件夹，然后把dist文件夹和Dockerfile文件上传到该目录下
+docker build -t dockervue .
+docker run --name=dockervue -d -p 9020:80 dockervue
